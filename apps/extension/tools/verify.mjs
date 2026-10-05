@@ -3,7 +3,17 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-const dir = process.argv[2] || 'E:/zzl_workbuddy_datas/招聘agent-build/extension'
+// 默认指向「仓库同级的 招聘agent-build/extension」。
+// ⚠️ 以前这里写死了一个本机绝对路径（E:/…/招聘agent-build/extension）——
+//    换台电脑跑就必然失败，而且把个人目录结构带进了公开代码。
+//    改成从脚本自身位置往上推：tools → extension → apps → 仓库根 → 再进同级 build 目录。
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const dir = process.argv[2] || path.resolve(__dirname, '../../../../招聘agent-build/extension')
+if (!fs.existsSync(dir)) {
+  console.error(`找不到扩展产物目录：${dir}`)
+  console.error('先跑 npm run build，或用参数指定：node tools/verify.mjs <extension 产物目录>')
+  process.exit(1)
+}
 process.chdir(dir)
 
 let bad = 0
