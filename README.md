@@ -3,8 +3,6 @@
 浏览器扩展采集简历 → 本机归档 → 网页看板汇总（岗位匹配 / Excel / PDF 导出）。
 **纯本机运行，数据不出本机。**
 
-> 远程仓库：公开 [github.com/zhenzeng19/recruit-intel-agent](https://github.com/zhenzeng19/recruit-intel-agent)（SSH 认证）。
-> ⚠️ 真实简历数据在仓库外的 `招聘agent-data/`，**需单独备份**。
 
 ---
 
