@@ -10,7 +10,7 @@
 Trae → 打开文件夹 → 选择：
 
 ```
-E:\zzl_workbuddy_datas\招聘agent
+<项目所在目录>/招聘agent
 ```
 
 > 注意：要打开 `招聘agent` 这个**仓库根目录**（里面能看到 `package.json` 和 `apps/`），
@@ -125,7 +125,7 @@ npm run build
 产物会集中输出到**仓库同级**的 `招聘agent-build/`：
 
 ```
-E:/zzl_workbuddy_datas/招聘agent-build/
+<项目所在目录>/招聘agent-build/
 ├── web/          ← 前端静态产物（丢到任意静态服务器即可）
 ├── server/       ← 后端单文件 index.js（自包含，无需再 npm install）
 └── extension/    ← 扩展（Chrome「加载已解压的扩展程序」选这个目录）

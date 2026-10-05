@@ -10,7 +10,7 @@ Edge 是 Chromium 内核，和 Chrome 用**同一套 MV3 扩展格式**，所以
 装之前跑一次自检，避免拿到半成品：
 
 ```bash
-cd E:/zzl_workbuddy_datas/招聘agent
+cd <项目所在目录>/招聘agent
 npm run icons        # 首次需要（生成图标）；已生成可跳过
 npm run build        # 构建三端
 npm run verify:ext   # 自检扩展产物完整性
@@ -22,7 +22,7 @@ popup 是否挂上。看到 **「全部引用文件存在，可直接加载到 E
 产物目录长这样（**注意要选的是 `extension` 这一层**）：
 
 ```
-E:\zzl_workbuddy_datas\招聘agent-build\extension\
+<项目所在目录>/招聘agent-build\extension\
 ├── manifest.json      ← Edge 靠这个识别扩展
 ├── background.js      ← 后台逻辑（队列 + 同步）
 ├── content.js         ← 注入到招聘网站页面
@@ -56,7 +56,7 @@ edge://extensions
 点 **`加载解压缩的扩展`**（Load unpacked），在弹出的文件夹选择框里定位到：
 
 ```
-E:\zzl_workbuddy_datas\招聘agent-build\extension
+<项目所在目录>/招聘agent-build\extension
 ```
 
 > ⚠️ **选目录，不要选里面的文件**。选中 `extension` 这一层，确保它直接包含 `manifest.json`。
@@ -86,7 +86,7 @@ E:\zzl_workbuddy_datas\招聘agent-build\extension
 等服务起来会自动补传（这就是「断网不丢」设计）。启动服务：
 
 ```bash
-cd E:/zzl_workbuddy_datas/招聘agent
+cd <项目所在目录>/招聘agent
 npm run start
 ```
 
