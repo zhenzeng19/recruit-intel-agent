@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg2: #f7f8fa;
+    --line: #e5e7eb;
+    --tx: #1f2328;
+    --tx2: #6b7280;
+    --indigo: #4338ca;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --bad: #dc2626;
+  }
+  * { box-sizing: border-box; }
+  body {
+    width: 348px;
+    margin: 0;
+    font: 13px/1.55 -apple-system, "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--tx);
+    background: var(--bg);
+  }
+  header {
+    display: flex; align-items: center; gap: 9px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, #fbfbfd, #fff);
+  }
+  header img { width: 22px; height: 22px; border-radius: 5px; }
+  header .t { font-weight: 600; font-size: 13.5px; }
+  header .v { margin-left: auto; font-size: 11px; color: var(--tx2); }
+
+  section { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+
+  .row { display: flex; align-items: center; gap: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .dot.ok { background: var(--ok); box-shadow: 0 0 0 3px rgba(22,163,74,.14); }
+  .dot.bad { background: var(--bad); box-shadow: 0 0 0 3px rgba(220,38,38,.14); }
+
+  .label { font-size: 11.5px; color: var(--tx2); margin-bottom: 5px; letter-spacing: .02em; }
+  .big { display: flex; align-items: baseline; gap: 8px; }
+  .num { font-size: 26px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .num.ok { color: var(--ok); }
+  .num.warn { color: var(--warn); }
+  .hint { font-size: 11.5px; color: var(--tx2); margin-top: 4px; }
+
+  .seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    border: none; border-right: 1px solid var(--line); border-radius: 0;
+    padding: 8px 4px; font-size: 12px; background: #fff; color: var(--tx2); cursor: pointer;
+  }
+  .seg button:last-child { border-right: none; }
+  .seg button:hover { background: var(--bg2); }
+  .seg button.active { background: var(--indigo); color: #fff; font-weight: 600; }
+
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+  .grid4 > div { background: var(--bg2); border: 1px solid var(--line); border-radius: 7px; padding: 7px 3px; }
+  .grid4 b { display: block; font-size: 15px; font-variant-numeric: tabular-nums; }
+  .grid4 span { font-size: 10px; color: var(--tx2); }
+
+  .tab-box {
+    border-radius: 7px; padding: 8px 10px; font-size: 12px;
+    border: 1px solid var(--line); background: var(--bg2); color: var(--tx2);
+  }
+  .tab-box.active { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+  .tab-box.warn { border-color: #fed7aa; background: #fffbeb; color: #b45309; }
+  .tab-box.idle { border-color: var(--line); }
+
+  .resume {
+    display: none; margin-top: 8px; padding: 8px 10px; border-radius: 7px;
+    border: 1px solid #c7d2fe; background: #eef1fd; font-size: 12px; color: #3730a3;
+  }
+  .resume b { font-weight: 650; }
+  .resume .meta { display: block; font-size: 10.5px; opacity: .85; margin-top: 2px; }
+
+  .pause {
+    display: none; margin-top: 8px; padding: 7px 9px; border-radius: 7px;
+    border: 1px solid var(--line); background: var(--bg2);
+    font-size: 11.5px; color: var(--tx2); align-items: center; gap: 8px;
+  }
+  .pause.show { display: flex; }
+  .pause button { flex: none; padding: 4px 8px; font-size: 11.5px; }
+
+  .pick { display: none; margin-top: 8px; align-items: center; gap: 8px; }
+  .pick.show { display: flex; }
+  .pick-l { font-size: 11.5px; color: var(--tx2); flex: none; }
+  #pos-select {
+    flex: 1; min-width: 0; font: inherit; font-size: 12px; padding: 5px 6px;
+    border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--tx);
+  }
+
+  .err {
+    margin-top: 8px; font-size: 11.5px; color: var(--bad);
+    background: #fef2f2; border: 1px solid #fecaca; border-radius: 6px; padding: 6px 8px;
+    word-break: break-all;
+  }
+
+  .diag {
+    display: none;
+    margin-top: 8px; font-size: 11.5px; line-height: 1.5;
+    border: 1px solid var(--line); background: var(--bg2); color: var(--tx2);
+    border-radius: 7px; padding: 8px 10px;
+    max-height: 186px; overflow-y: auto; word-break: break-word;
+  }
+  .diag.good { border-color: #bbf7d0; background: #f0fdf4; color: #15803d; }
+  .diag.bad { border-color: #fecaca; background: #fef2f2; color: #991b1b; }
+  .diag .v { font-weight: 550; }
+  .diag .meta { display: block; margin-top: 3px; font-size: 10.5px; opacity: .85; }
+  .diag ul { margin: 6px 0 0; padding-left: 15px; font-size: 10.5px; }
+  .diag li { margin-bottom: 2px; }
+  .diag li b { color: var(--tx); font-weight: 550; }
+
+  .log { list-style: none; margin: 0; padding: 0; max-height: 128px; overflow-y: auto; }
+  .log li {
+    display: flex; align-items: baseline; gap: 6px;
+    font-size: 11.5px; padding: 4px 0; border-bottom: 1px dashed var(--line);
+  }
+  .log li:last-child { border-bottom: none; }
+  .log .tm { color: var(--tx2); font-variant-numeric: tabular-nums; flex: none; }
+  .log .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log .ac { flex: none; font-size: 11px; }
+  .log .ac.saved { color: var(--ok); }
+  .log .ac.duplicated { color: var(--tx2); }
+  .log .ac.queued { color: var(--warn); }
+  .log .ac.skipped { color: var(--tx2); }
+  .log .ac.rejected { color: var(--bad); }
+
+  .btns { display: flex; gap: 8px; padding: 12px 14px; }
+  button {
+    flex: 1; font: inherit; font-size: 12.5px; cursor: pointer;
+    border-radius: 7px; padding: 8px 10px; border: 1px solid var(--line);
+    background: #fff; color: var(--tx); transition: .12s;
+  }
+  button:hover:not(:disabled) { background: var(--bg2); border-color: #d1d5db; }
+  button:disabled { opacity: .55; cursor: default; }
+  button.primary {
+    background: var(--indigo); border-color: var(--indigo); color: #fff; font-weight: 550;
+  }
+  button.primary:hover:not(:disabled) { background: #3730a3; border-color: #3730a3; }
+  button.danger { color: var(--bad); }
+
+  footer {
+    padding: 8px 14px 11px; font-size: 11px; color: var(--tx2);
+    border-top: 1px solid var(--line); background: var(--bg2);
+    display: flex; justify-content: space-between; gap: 8px;
+  }
+  #last-capture { font-weight: 550; color: var(--tx); }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 14px; transform: translate(-50%, 8px);
+    background: rgba(31,35,40,.92); color: #fff; font-size: 12px;
+    padding: 6px 12px; border-radius: 6px; opacity: 0; pointer-events: none;
+    transition: .18s;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+  <header>
+    <img src="icons/icon48.png" alt="" />
+    <span class="t">招聘捕手</span>
+    <span class="v">v0.5.5</span>
+  </header>
+
+  <section>
+    <div class="row">
+      <span class="dot" id="backend-dot"></span>
+      <span id="backend-text" style="font-size:12px">正在检查后端…</span>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">采集模式</div>
+    <div class="seg">
+      <button id="mode-auto" data-mode="auto">自动</button>
+      <button id="mode-confirm" data-mode="confirm">保存前询问</button>
+      <button id="mode-off" data-mode="off">关闭</button>
+    </div>
+    <div class="hint" id="mode-hint"></div>
+  </section>
+
+  <section>
+    <div class="label">当前标签页</div>
+    <div class="tab-box idle" id="tab-box"><span id="tab-text">检测中…</span></div>
+    <div class="resume" id="resume-box">
+      <span id="resume-text"></span>
+      <span class="meta" id="resume-meta"></span>
+    </div>
+    <div class="pause" id="pause-box">
+      <span style="flex:1">本页已被设为「都不再问」</span>
+      <button id="btn-resume">恢复本页采集</button>
+    </div>
+    <div class="pick" id="pick-box">
+      <span class="pick-l">挂到岗位</span>
+      <select id="pos-select"></select>
+    </div>
+    <div class="hint" id="pos-hint" style="display:none"></div>
+    <div class="btns" style="padding:10px 0 0">
+      <button class="primary" id="btn-save">保存到看板</button>
+      <button id="btn-skip">这次不存</button>
+    </div>
+    <div class="diag" id="diag-box"></div>
+  </section>
+
+  <section>
+    <div class="label">本地待上传队列</div>
+    <div class="big"><span class="num" id="queue-num">0</span><span style="font-size:12px;color:var(--tx2)">份简历</span></div>
+    <div class="hint" id="queue-hint"></div>
+  </section>
+
+  <section>
+    <div class="grid4">
+      <div><b id="stat-synced">0</b><span>已入库</span></div>
+      <div><b id="stat-manual">0</b><span>手动保存</span></div>
+      <div><b id="stat-dup">0</b><span>判重跳过</span></div>
+      <div><b id="stat-skip">0</b><span>我选择不存</span></div>
+    </div>
+  </section>
+
+  <div class="btns">
+    <button class="primary" id="btn-sync">立即同步</button>
+    <button id="btn-diag">诊断当前页</button>
+  </div>
+
+  <section style="padding-top:0">
+    <div class="err" id="err-box" style="display:none"></div>
+  </section>
+
+  <section style="padding-top:0">
+    <div class="label">最近决策</div>
+    <ul class="log" id="log-list"><li><span class="nm">还没有记录</span></li></ul>
+  </section>
+
+  <div class="btns" style="padding-top:0">
+    <button id="btn-open">打开看板</button>
+    <button class="danger" id="btn-clear">清空本地队列</button>
+  </div>
+
+  <footer>
+    <span>最近采集</span>
+    <span id="last-capture">—</span>
+  </footer>
+
+  <div id="toast"></div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

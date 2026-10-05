@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>招聘情报 Agent · 总览方案 v0.1</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --line:#e6e8ec; --line2:#eef0f3;
+    --tx:#1c1f24; --tx2:#5a6270; --tx3:#8b93a1;
+    --accent:#3b5bdb; --accent-bg:#eef1fd;
+    --ok:#1f9d63; --ok-bg:#e8f6ef;
+    --warn:#b6791a; --warn-bg:#fdf4e3;
+    --risk:#c0392b; --risk-bg:#fdecea;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--tx);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px; line-height:1.7;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:40px 24px 80px}
+  h1{font-size:26px; font-weight:600; margin:0 0 6px; letter-spacing:-.02em}
+  .sub{color:var(--tx2); font-size:14px; margin-bottom:8px}
+  .meta{color:var(--tx3); font-size:12.5px; margin-bottom:28px}
+  h2{font-size:18px; font-weight:600; margin:38px 0 14px; padding-left:11px; border-left:3px solid var(--accent); line-height:1.3}
+  h3{font-size:15px; font-weight:600; margin:22px 0 8px; color:var(--tx)}
+  p{margin:8px 0; color:var(--tx)}
+  ul,ol{margin:8px 0; padding-left:22px}
+  li{margin:4px 0}
+  code{background:#eef0f3; padding:1px 6px; border-radius:4px; font-size:12.5px; font-family:"SF Mono",Consolas,monospace; color:#334}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px 20px; margin:14px 0}
+  .tldr{background:linear-gradient(0deg,#eef1fd,#eef1fd); border:1px solid #d6ddfa; border-radius:12px; padding:18px 20px; margin:18px 0}
+  .tldr .h{font-weight:600; color:var(--accent); margin-bottom:6px; font-size:13px; letter-spacing:.04em}
+  table{width:100%; border-collapse:collapse; margin:14px 0; font-size:13px; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden}
+  th,td{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line2); vertical-align:top}
+  th{background:#f1f3f6; font-weight:600; color:var(--tx2); font-size:12.5px; white-space:nowrap}
+  tr:last-child td{border-bottom:none}
+  .tag{display:inline-block; font-size:11.5px; padding:1px 8px; border-radius:99px; font-weight:500; line-height:1.6}
+  .t-ok{background:var(--ok-bg); color:var(--ok)}
+  .t-warn{background:var(--warn-bg); color:var(--warn)}
+  .t-risk{background:var(--risk-bg); color:var(--risk)}
+  .t-info{background:var(--accent-bg); color:var(--accent)}
+  .t-mid{background:#eef0f3; color:var(--tx2)}
+  .layers{display:grid; gap:10px; margin:16px 0}
+  .layer{display:flex; align-items:stretch; border:1px solid var(--line); border-radius:10px; overflow:hidden; background:var(--card)}
+  .layer .ln{flex:0 0 118px; background:#f1f3f6; padding:12px 14px; font-weight:600; font-size:13px; display:flex; align-items:center; border-right:1px solid var(--line)}
+  .layer .lc{padding:12px 16px; font-size:13px; color:var(--tx2); flex:1}
+  .layer .lc b{color:var(--tx); font-weight:600}
+  .layer.l1 .ln{background:#eef1fd; color:var(--accent)}
+  .layer.l2 .ln{background:#e8f6ef; color:var(--ok)}
+  .layer.l3 .ln{background:#fdf4e3; color:var(--warn)}
+  .layer.l4 .ln{background:#f3eefd; color:#6741d9}
+  .layer.l5 .ln{background:#fdeef4; color:#c2255c}
+  .riskbox{border-left:3px solid var(--risk); background:var(--risk-bg); border-radius:0 10px 10px 0; padding:14px 18px; margin:14px 0}
+  .riskbox h3{margin-top:0; color:var(--risk)}
+  .road{display:grid; gap:10px; margin:16px 0}
+  .phase{display:grid; grid-template-columns:96px 1fr; border:1px solid var(--line); border-radius:10px; background:var(--card); overflow:hidden}
+  .phase .pn{padding:12px; font-weight:600; font-size:12.5px; background:#f1f3f6; display:flex; align-items:center; justify-content:center; border-right:1px solid var(--line); color:var(--tx)}
+  .phase.p0 .pn{background:#e8f6ef; color:var(--ok)}
+  .phase.p1 .pn{background:#eef1fd; color:var(--accent)}
+  .phase.p2 .pn{background:#fdf4e3; color:var(--warn)}
+  .phase.p3 .pn{background:#f3eefd; color:#6741d9}
+  .phase .pc{padding:12px 16px; font-size:13px; color:var(--tx2)}
+  .phase .pc b{color:var(--tx)}
+  .q{counter-reset:qq}
+  .q .item{display:flex; gap:12px; padding:11px 0; border-bottom:1px dashed var(--line)}
+  .q .item:last-child{border-bottom:none}
+  .q .num{flex:0 0 24px; height:24px; border-radius:50%; background:var(--accent); color:#fff; font-size:12px; display:flex; align-items:center; justify-content:center; font-weight:600; margin-top:2px}
+  .q .qt{flex:1; font-size:13.5px}
+  .q .qt .k{color:var(--tx3); font-size:12.5px}
+  .ascii{font-family:"SF Mono",Consolas,monospace; font-size:12px; background:#f8f9fb; border:1px solid var(--line); border-radius:10px; padding:16px; white-space:pre; overflow-x:auto; color:#2c3340; line-height:1.55}
+  .foot{margin-top:44px; padding-top:16px; border-top:1px solid var(--line); color:var(--tx3); font-size:12.5px}
+  .kpi{display:flex; gap:10px; flex-wrap:wrap; margin:14px 0}
+  .kpi div{flex:1 1 140px; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px}
+  .kpi b{display:block; font-size:20px; font-weight:600; color:var(--accent)}
+  .kpi span{font-size:12px; color:var(--tx2)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>招聘情报 Agent · 总览方案</h1>
+  <div class="sub">无感采集简历 → 云端归类 → JD 匹配 → 每日简报 → 人才 Map，一个闭环。</div>
+  <div class="meta">版本 v0.1 · 待评审 · 2026-09-30 · 面向：招聘 HR / 招聘负责人</div>
+
+  <div class="tldr">
+    <div class="h">一句话结论</div>
+    不做「写爬虫去扒简历」。做一条<strong>「无感沉淀 → 云端归类 → 大模型匹配 → 每日推谁 → 人才地图」</strong>的流水线。<br>
+    采集端用<strong>浏览器扩展</strong>（只读你已登录、页面上肉眼可见的内容），云端用<strong>托管数据库 + 大模型</strong>，展示端一个 <strong>Web 看板</strong>，最后打包成可调用的 <strong>Skill</strong> 并发布上线。<br>
+    采集通道分两级：<strong>被动采集（默认，零操作、低风险）</strong> + <strong>主动 MCP（可选，批量搜索用）</strong>。
+  </div>
+
+  <h2>1 · 你的需求，拆成 6 个能力</h2>
+  <div class="kpi">
+    <div><b>无感采集</b><span>在线简历 + 离线简历文件</span></div>
+    <div><b>云端归档</b><span>按岗位 / 候选人结构化</span></div>
+    <div><b>智能归类</b><span>岗位归类 + 同一人合并</span></div>
+    <div><b>检索问答</b><span>关键词 + 自然语言</span></div>
+    <div><b>提取待办</b><span>进度节点 + 跟进提醒</span></div>
+    <div><b>简报地图</b><span>每日「推谁」+ 人才 Map</span></div>
+  </div>
+  <div class="card">
+    <ol style="margin:0">
+      <li><b>无感采集</b>：你在 BOSS / 猎聘上点开过的每一份简历（在线），以及你下载的离线简历（PDF / Word / 图片），自动进库，不用手动复制粘贴。</li>
+      <li><b>云端归档</b>：所有候选人存到云端，按「岗位」分门别类，网页端随时看。</li>
+      <li><b>智能分类与关联</b>：自动把候选人归到对应岗位族；同一个人在多平台 / 在线+离线出现时自动合并；技能标签归一（「大模型 / LLM / AIGC」算一类）。</li>
+      <li><b>检索与问答</b>：既有关键词检索，也能自然语言问（「帮我找有半导体量测经验、5 年以上的候选人」）。</li>
+      <li><b>信息提取与待办整理</b>：从简历和沟通记录里提取关键信息（期望薪资、到岗时间、当前状态），生成待跟进清单。</li>
+      <li><b>阶段总结 + 行动建议</b>：按 JD 匹配度，每天出「哪些岗位该推谁」的清单；人才 Map 看板看整体盘面。</li>
+    </ol>
+  </div>
+
+  <h2>2 · 关键调研：BOSS / 猎聘到底有没有 API 和 MCP</h2>
+  <p>这决定了整个采集层怎么设计，先说结论：<strong style="color:var(--risk)">两家都没有面向第三方的公开简历 API，官方「开放平台」也不对路。所以 MVP 不能依赖官方接口。</strong></p>
+  <table>
+    <thead>
+      <tr><th>平台</th><th>官方 API</th><th>「开放平台」真相</th><th>社区 MCP 现状</th><th>工程上可用手段</th><th>风险</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><b>BOSS 直聘</b><br><span style="color:var(--tx3);font-size:12px">zhipin.com</span></td>
+        <td><span class="tag t-risk">无公开简历 API</span></td>
+        <td>open.zhipin.com 是 <b>BOSSHI 小程序身份体系</b>（bz.login / code2session），与招聘数据无关，不能用来拉职位/简历</td>
+        <td>存在多个：<code>Snseam/boss-zhipin-mcp</code>（招聘端，候选人搜索+简历截图+AI 打分）、<code>mucsbr/mcp-bosszp</code>；均走 Playwright + 已登录 Chrome（CDP）</td>
+        <td>登录态 <code>wapi</code> JSON 接口 + Playwright DOM 兜底；图片型简历走截图 + 多模态识别</td>
+        <td><span class="tag t-risk">高</span> 风控严格，高频 / 批量打招呼会封号</td>
+      </tr>
+      <tr>
+        <td><b>猎聘</b><br><span style="color:var(--tx3);font-size:12px">liepin.com</span></td>
+        <td><span class="tag t-warn">企业版接口需商务对接</span></td>
+        <td><code>api.liepin.com</code> / <code>open.liepin.com</code> 存在，但面向企业 ATS 集成，需签约，非自助注册</td>
+        <td>暂无成熟公开 MCP</td>
+        <td>社区逆向搜索接口 <code>api-c.liepin.com/api/com.liepin.searchfront4c.pc-search-job</code>（POST + JSON，需 XSRF-TOKEN）</td>
+        <td><span class="tag t-warn">中高</span> 有反爬与 Token 校验</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card">
+    <h3 style="margin-top:0">一个重要旁证：这条路已经被商用验证过</h3>
+    <p>市面上已有同类产品在跑，说明「浏览器扩展读已授权页面」的路线技术上成立、也不是没人做过：</p>
+    <ul style="margin-bottom:0">
+      <li><b>KingStar 招聘助手</b>：在 BOSS「沟通列表 / 推荐牛人」页一键整理本页候选人，按岗位要求打分，导出 HTML / CSV —— 和你的需求几乎重合。</li>
+      <li><b>奇客大师简历采集插件</b>：采集猎聘、智联、前程无忧、LinkedIn 简历，对接自家 ATS（基于 Odoo）。</li>
+      <li><b>Boss直聘 AI 简历助手(for HR)</b>：自动遍历推荐牛人 / 搜索牛人 / 沟通页简历，AI 打分。</li>
+    </ul>
+    <p style="margin-bottom:0;color:var(--tx2)">共同点：<b>都由用户本人登录、只读页面可见内容、不绕过风控</b>——这就是我们为 MVP 选定的边界。</p>
+  </div>
+
+  <h2>3 · 总体架构（五层）</h2>
+  <div class="layers">
+    <div class="layer l1"><div class="ln">采集层</div><div class="lc">
+      <b>Chrome/Edge MV3 扩展「简历捕手」</b> —— 被动：注入 zhipin/liepin，监听你打开的简历页自动抓取；离线：拖拽上传 PDF/Word/图片。<br>
+      <b>（可选）MCP Server</b> —— Playwright + CDP 接你已登录的 Chrome，批量搜索「找人才」并翻页。
+    </div></div>
+    <div class="layer l2"><div class="ln">存储层</div><div class="lc">
+      <b>云数据库（Postgres）</b>：候选人 / 岗位 / 匹配 / 进度 / 待办 / 简报。<b>对象存储</b>：原始简历文件与页面快照。<b>认证 + 行级权限 RLS</b>：各账号数据互相隔离。
+    </div></div>
+    <div class="layer l3"><div class="ln">智能层</div><div class="lc">
+      <b>大模型流水线</b>：简历结构化 → JD 结构化 → 匹配打分（可解释）→ 岗位归类 → 实体归一 → 每日简报 → 智能问答（RAG）。
+    </div></div>
+    <div class="layer l4"><div class="ln">展示层</div><div class="lc">
+      <b>Web 看板</b>：候选人库（按岗位分组）· 岗位看板（漏斗）· 每日简报 · 人才 Map · 问答框 · 待办中心。
+    </div></div>
+    <div class="layer l5"><div class="ln">发布层</div><div class="lc">
+      <b>一键上线</b>：站点部署 + 云端后端，生成可分享链接；打包 <b>Skill</b> 供对话内直接调用（查库 / 出简报）。
+    </div></div>
+  </div>
+
+  <h3>数据流（无感采集 → 看板）</h3>
+  <div class="ascii">你点开一份简历
+   │
+   ▼
+[扩展 content script] 监听 SPA 路由 + DOM 变化 → 提取字段
+   │  · 文本型简历：直接读 DOM
+   │  · 图片型简历（BOSS canvas 渲染）：整屏截图 → 多模态模型解析
+   ▼
+[本地 IndexedDB 缓冲] → 去重（平台ID + 姓名/电话 hash）
+   │  · 静默：仅在空闲时批量上传，断网可恢复
+   ▼
+[云端 API + 队列] → 大模型结构化 → 落库（对象存储留存原始文件）
+   │
+   ▼
+[匹配引擎] 简历 × 你的 JD → 0–100 分 + 命中/缺失理由
+   │
+   ▼
+[Web 看板]  候选人库 / 岗位漏斗 / 每日简报 / 人才 Map / 问答</div>
+
+  <h2>4 · 采集层设计（「无感」是重点）</h2>
+  <h3>4.1 在线简历 —— 被动、零操作</h3>
+  <ul>
+    <li><b>触发方式</b>：监听 SPA 路由与 DOM 变化，你打开某人简历（列表点开 / 详情页 / 沟通页）即自动抓取，不改变你的操作习惯。</li>
+    <li><b>提取字段</b>：姓名 / 性别 / 年龄 / 城市 / 学历 / 院校 / 专业 / 工作年限 / 现任公司与职位 / 期望薪资 / 求职意向 / 技能标签 / 工作经历 / 项目经历 / 自评 / 平台候选人 ID / 简历来源链接。</li>
+    <li><b>图片型简历</b>：BOSS 部分简历是 canvas 渲染、DOM 里没有文本 → 整屏截图，交给多模态模型（视觉 LLM）解析成结构。</li>
+    <li><b>去重</b>：平台候选人 ID 为主键；跨平台用「姓名 + 手机/邮箱」哈希兜底。</li>
+    <li><b>静默同步</b>：本地 IndexedDB 先缓冲 → 后台 service worker 空闲时批量上传；断网 / 关页不丢数据。</li>
+    <li><b>风控友好</b>：只在你主动浏览时触发，扩展不自己发起并发请求 → 账号风险降到最低。</li>
+    <li><b>可控开关</b>：悬浮指示器显隐、暂停采集、岗位白名单。</li>
+  </ul>
+
+  <h3>4.2 离线简历 —— 拖拽即入库</h3>
+  <ul>
+    <li>支持 PDF / DOC / DOCX / JPG / PNG，拖拽或选文件夹批量导入。</li>
+    <li>自动解析入库，并与「在线简历」做同一人合并（走 4.1 的去重逻辑）。</li>
+  </ul>
+
+  <h3>4.3 主动采集（可选，P3）</h3>
+  <ul>
+    <li>MCP Server：Playwright 通过 CDP 连接你已登录的 Chrome，按关键词在「找人才 / 推荐牛人」批量搜索、翻页抓取。</li>
+    <li><b>与被动通道解耦，默认关闭，需手动触发</b>；内置限速 + 熔断（遇到风控立即停止）。</li>
+  </ul>
+
+  <h2>5 · 数据模型（核心表）</h2>
+  <table>
+    <thead><tr><th>表</th><th>作用</th><th>关键字段</th></tr></thead>
+    <tbody>
+      <tr><td><code>candidates</code></td><td>候选人主表（一人一档）</td><td>姓名、城市、学历、年限、期望薪资、技能、来源、创建时间</td></tr>
+      <tr><td><code>candidate_sources</code></td><td>多平台来源（一人可多来源）</td><td>平台、平台ID、简历链接、原始快照、采集时间</td></tr>
+      <tr><td><code>positions</code></td><td>岗位 + JD 原文</td><td>岗位名、部门、JD 正文、状态</td></tr>
+      <tr><td><code>position_requirements</code></td><td>JD 结构化后的要求</td><td>硬性条件、加分项、技能向量</td></tr>
+      <tr><td><code>matches</code></td><td>候选人 × 岗位 匹配结果</td><td>分值(0–100)、命中点、缺失点、模型版本</td></tr>
+      <tr><td><code>applications</code></td><td>招聘进度</td><td>状态(待沟通/已沟通/约面/面试中/Offer/淘汰)、更新时间</td></tr>
+      <tr><td><code>todos</code></td><td>待跟进事项</td><td>候选人、事项、截止时间、状态</td></tr>
+      <tr><td><code>daily_reports</code></td><td>每日简报</td><td>日期、各岗位推荐清单、待跟进、统计</td></tr>
+      <tr><td><code>files</code></td><td>原始文件索引</td><td>对象存储 key、类型、大小、来源</td></tr>
+      <tr><td><code>audit_log</code></td><td>采集审计（合规用）</td><td>谁、何时、采了什么、来源 URL</td></tr>
+    </tbody>
+  </table>
+
+  <h2>6 · 智能层（大模型流水线）</h2>
+  <ol>
+    <li><b>简历结构化</b>：原文（或截图）→ 标准 JSON 档案。</li>
+    <li><b>JD 结构化</b>：把你粘贴的 JD → 硬性条件 / 加分项 / 技能清单。</li>
+    <li><b>匹配打分</b>：先向量召回，再 LLM 精排，输出 0–100 分 + <b>命中点 / 缺失点（可解释、可核对）</b>。</li>
+    <li><b>岗位自动归类</b>：把候选人自动归到你的岗位族。</li>
+    <li><b>实体归一</b>：同一人多平台合并；技能同义词归一（大模型/LLM/AIGC → 同一标签）。</li>
+    <li><b>每日简报</b>：今日已看 N 人 → 各岗位分布 → 每岗位 Top 推荐 + 推荐理由 → 待跟进清单。</li>
+    <li><b>智能问答</b>：在你的候选人库上做 RAG，自然语言问、自然语言答。</li>
+  </ol>
+
+  <h2>7 · 展示层（Web 看板）</h2>
+  <table>
+    <thead><tr><th>模块</th><th>你会看到什么</th></tr></thead>
+    <tbody>
+      <tr><td><b>候选人库</b></td><td>表格 / 卡片，按 岗位 · 匹配度 · 进度 · 来源平台 筛选，关键词检索</td></tr>
+      <tr><td><b>岗位看板</b></td><td>每个岗位下的候选人漏斗（已看 → 意向 → 约面 → 面试 → Offer）</td></tr>
+      <tr><td><b>每日简报</b></td><td>一页看完「今天每个岗位推谁、为什么、该跟进谁」</td></tr>
+      <tr><td><b>人才 Map</b></td><td>① 地理热力图（城市/区域分布）② 技能图谱（共现）③ 公司 / 院校来源分布 ④ 岗位-人才匹配矩阵</td></tr>
+      <tr><td><b>智能问答</b></td><td>对话框，直接在库里问</td></tr>
+      <tr><td><b>待办中心</b></td><td>今日/逾期待跟进清单</td></tr>
+    </tbody>
+  </table>
+
+  <h2>8 · 交付形态（你要能「调用」）</h2>
+  <ul>
+    <li><b>Web 应用</b>（发布链接）—— 主入口，看板与简报。</li>
+    <li><b>浏览器扩展</b> —— 采集端，你日常浏览时无感运行。</li>
+    <li><b>Skill</b> —— 在对话里直接调用：查库、生成简报、问候选人。</li>
+    <li><b>（可选）MCP Server</b> —— 让 Agent 主动批量采集。</li>
+  </ul>
+
+  <div class="riskbox">
+    <h3>9 · 合规与风控红线（务必先对齐）</h3>
+    <ul style="margin-bottom:0">
+      <li><b>简历属于个人信息</b>，受《个人信息保护法》约束。仅限<b>本人招聘目的、授权范围内</b>使用，<b>禁止二次传播 / 贩卖</b>。</li>
+      <li>只采集<b>你已登录、页面已展示</b>的内容，<b>不绕过登录 / 验证码 / 风控</b>。</li>
+      <li>平台协议：<b>不做多账号、无人值守高频抓取、批量打招呼 / 自动投递</b>。</li>
+      <li>数据隔离：行级权限，每账号仅见自己数据；支持导出与删除。</li>
+      <li>保留审计日志：谁在何时采了什么，来源 URL 可追溯。</li>
+    </ul>
+  </div>
+
+  <h2>10 · 分期路线图</h2>
+  <div class="road">
+    <div class="phase p0"><div class="pn">P0 MVP</div><div class="pc"><b>先跑通闭环</b>：扩展采集 BOSS 在线简历 + 离线简历上传 + 云端库 + 候选人看板（按岗位分组）+ 关键词检索。<span class="tag t-ok">最小可用</span></div></div>
+    <div class="phase p1"><div class="pn">P1</div><div class="pc"><b>智能化</b>：LLM 结构化 + JD 匹配打分 + 每日简报「推谁」。</div></div>
+    <div class="phase p2"><div class="pn">P2</div><div class="pc"><b>丰富化</b>：智能问答 + 人才 Map 看板 + 猎聘通道 + 图片简历多模态 OCR。</div></div>
+    <div class="phase p3"><div class="pn">P3</div><div class="pc"><b>规模化</b>：MCP 主动采集 + 团队共享候选人库 + 查重增强。</div></div>
+  </div>
+
+  <h2>11 · 需要你拍板的 6 件事</h2>
+  <div class="q card">
+    <div class="item"><div class="num">1</div><div class="qt"><b>采集范围</b>：先只做 BOSS，还是 BOSS + 猎聘一起上？<div class="k">猎聘接口需额外适配 Token，成本更高。</div></div></div>
+    <div class="item"><div class="num">2</div><div class="qt"><b>主动 or 被动</b>：接受「被动采集 + 手动上传」的 MVP，还是一开始就要 MCP 主动批量搜索？<div class="k">主动采集更快出量，但账号风险更高、维护更重。</div></div></div>
+    <div class="item"><div class="num">3</div><div class="qt"><b>岗位族</b>：你负责的岗位大概几个、是否固定？<div class="k">影响「岗位自动归类」怎么设计——固定少量岗位可规则化，多且变动大则靠模型聚类。</div></div></div>
+    <div class="item"><div class="num">4</div><div class="qt"><b>使用范围</b>：只有你自己用，还是团队一起用？<div class="k">影响认证、权限、数据隔离的复杂度。</div></div></div>
+    <div class="item"><div class="num">5</div><div class="qt"><b>大模型</b>：用平台自带的免密钥调用，还是接你自己的 API Key？<div class="k">影响成本与数据出境口径。</div></div></div>
+    <div class="item"><div class="num">6</div><div class="qt"><b>合规口径</b>：是否需要审计日志、离职数据清理机制？<div class="k">大公司通常对个人信息留存有硬要求，建议默认开启。</div></div></div>
+  </div>
+
+  <div class="foot">
+    招聘情报 Agent · 总览方案 v0.1 —— 本方案仅为技术架构与产品设计草案，等你评审后我们再定稿进入开发。<br>
+    下一步：你回复上面 6 个问题（或直接说「按 P0 开做」），我据此出详细技术设计与任务拆解。
+  </div>
+
+</div>
+</body>
+</html>

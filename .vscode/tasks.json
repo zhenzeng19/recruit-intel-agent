@@ -1,0 +1,104 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "构建全部",
+      "detail": "web + server + extension 一起编译，产物输出到 ../招聘agent-build",
+      "type": "shell",
+      "command": "npm run build",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "构建扩展",
+      "detail": "只编译浏览器扩展",
+      "type": "shell",
+      "command": "npm -w @ria/extension run build",
+      "problemMatcher": []
+    },
+    {
+      "label": "构建后端",
+      "detail": "只编译后端（自包含单文件）",
+      "type": "shell",
+      "command": "npm -w @ria/server run build",
+      "problemMatcher": []
+    },
+    {
+      "label": "构建前端",
+      "detail": "只编译前端看板",
+      "type": "shell",
+      "command": "npm -w @ria/web run build",
+      "problemMatcher": []
+    },
+    {
+      "label": "生成扩展图标",
+      "detail": "用 Node 手写 PNG 生成 16/32/48/128 图标（改了图形才需要）",
+      "type": "shell",
+      "command": "npm run icons",
+      "problemMatcher": []
+    },
+    {
+      "label": "校验扩展产物",
+      "detail": "检查 manifest 引用的文件是否都在、权限是否齐全、popup 是否挂上",
+      "type": "shell",
+      "command": "npm run verify:ext",
+      "problemMatcher": []
+    },
+    {
+      "label": "扩展集成测试",
+      "detail": "用假的 chrome 桩驱动真实产物 + 自带隔离后端，验证采集/去重/断网不丢",
+      "type": "shell",
+      "command": "npm run test:ext",
+      "problemMatcher": []
+    },
+    {
+      "label": "清理产物",
+      "type": "shell",
+      "command": "npm run clean",
+      "problemMatcher": []
+    },
+    {
+      "label": "安装依赖",
+      "detail": "本机需要用 --ignore-scripts 跳过 esbuild 安装脚本",
+      "type": "shell",
+      "command": "npm install --ignore-scripts",
+      "problemMatcher": []
+    },
+    {
+      "label": "启动前端 dev",
+      "type": "shell",
+      "command": "npm run dev:web",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": "^([^\\s].*)$",
+          "file": 1,
+          "location": 1,
+          "message": 1
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*VITE v.*",
+          "endsPattern": ".*ready in.*"
+        }
+      }
+    },
+    {
+      "label": "启动产物（生产模式）",
+      "detail": "跑编译后的产物：后端一并托管前端看板，打开 http://localhost:8787/",
+      "type": "shell",
+      "command": "npm run start",
+      "problemMatcher": []
+    },
+    {
+      "label": "启动后端 dev",
+      "type": "shell",
+      "command": "npm run dev:server",
+      "problemMatcher": []
+    }
+  ]
+}

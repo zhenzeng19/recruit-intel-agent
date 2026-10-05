@@ -1,0 +1,59 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "① 调试后端 server（源码断点）",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/server",
+      "program": "${workspaceFolder}/apps/server/src/index.ts",
+      "runtimeArgs": ["--experimental-strip-types"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"],
+      "env": {
+        "SERVER_PORT": "8787"
+      }
+    },
+    {
+      "name": "①' 调试后端 server（改代码自动重启）",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/apps/server",
+      "program": "${workspaceFolder}/apps/server/src/index.ts",
+      "runtimeArgs": ["--experimental-strip-types", "--watch"],
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "② 调试前端看板 web（自动开浏览器）",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/apps/web",
+      "preLaunchTask": "启动前端 dev",
+      "sourceMaps": true
+    },
+    {
+      "name": "③ 调试浏览器扩展（自动开带扩展的 Chrome）",
+      "type": "chrome",
+      "request": "launch",
+      "url": "https://www.zhipin.com",
+      "runtimeArgs": [
+        "--load-extension=${workspaceFolder}/../招聘agent-build/extension",
+        "--disable-extensions-except=${workspaceFolder}/../招聘agent-build/extension"
+      ],
+      "userDataDir": "${workspaceFolder}/.chrome-debug-profile",
+      "preLaunchTask": "构建扩展"
+    },
+    {
+      "name": "④ 把后端调试器挂到已运行的进程",
+      "type": "node",
+      "request": "attach",
+      "port": 9229,
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"]
+    }
+  ]
+}

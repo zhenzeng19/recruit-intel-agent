@@ -1,0 +1,9 @@
+{
+  "name": "@ria/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "web / server / extension 共用类型与常量",
+  "main": "src/index.ts",
+  "types": "src/index.ts"
+}

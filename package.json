@@ -1,0 +1,33 @@
+{
+  "name": "recruit-intel-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "招聘情报 Agent —— 无感采集简历 / 云端归类 / JD 匹配 / 每日简报 / 人才 Map",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node scripts/start.mjs",
+    "clean": "node scripts/clean.mjs",
+    "portable": "node scripts/make-portable.mjs",
+    "smoke": "node .smoke/build.mjs && node .smoke/out.mjs",
+    "icons": "npm -w @ria/extension run icons",
+    "verify:ext": "npm -w @ria/extension run verify",
+    "repair:data": "node scripts/repair-data.mjs",
+    "test:ext": "npm -w @ria/extension run test",
+    "test:extract": "npm -w @ria/extension run test:extract",
+    "test:store": "npm -w @ria/server run test",
+    "test:print": "node apps/server/tools/test-print.mjs",
+    "test:export": "node apps/server/tools/test-export.mjs",
+    "test": "npm run typecheck && npm run smoke && npm run test:store && npm run test:print && npm run test:export && npm run test:ext && npm run verify:ext",
+    "dev:web": "npm -w @ria/web run dev",
+    "dev:server": "npm -w @ria/server run dev",
+    "typecheck": "npm -w @ria/web run typecheck && npm -w @ria/server run typecheck && npm -w @ria/extension run typecheck"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

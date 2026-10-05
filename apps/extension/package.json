@@ -1,0 +1,22 @@
+{
+  "name": "@ria/extension",
+  "version": "0.5.5",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "icons": "node tools/make-icons.mjs",
+    "verify": "node tools/verify.mjs",
+    "test": "node tools/test-background.mjs && node tools/test-extract.mjs",
+    "test:extract": "node tools/test-extract.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ria/shared": "*"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.287",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.3"
+  }
+}

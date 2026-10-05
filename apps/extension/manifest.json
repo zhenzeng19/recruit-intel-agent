@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "招聘捕手 · Resume Catcher",
+  "version": "0.5.5",
+  "description": "无感采集你在 BOSS直聘 / 猎聘（含猎聘企业端）浏览过的简历。内置采集开关：自动保存 / 保存前询问 / 关闭，页面上可随时决定这份存不存。",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": ["storage", "activeTab", "alarms"],
+  "host_permissions": [
+    "https://zhipin.com/*",
+    "https://*.zhipin.com/*",
+    "https://liepin.com/*",
+    "https://*.liepin.com/*",
+    "http://localhost:8787/*",
+    "http://127.0.0.1:8787/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://zhipin.com/*",
+        "https://*.zhipin.com/*",
+        "https://liepin.com/*",
+        "https://*.liepin.com/*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_title": "招聘捕手",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}

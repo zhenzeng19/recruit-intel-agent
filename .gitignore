@@ -1,0 +1,45 @@
+# 依赖
+node_modules/
+.pnpm-store/
+.nm_old/
+
+# 编译产物（默认输出到仓库同级目录，见 .env 的 BUILD_OUT_DIR）
+dist/
+build/
+
+# 浏览器「打包扩展」的产物 —— .pem 是签名私钥，绝不入库
+*.crx
+*.pem
+
+# 环境变量（绝不入库）
+.env
+.env.local
+.env.*.local
+
+# 本地数据 / 缓存 / 临时文件
+# 运行时数据目录默认在仓库同级（见 .env 的 DATA_DIR），这里是「放进仓库内」时的兜底忽略
+data/
+招聘agent-data/
+.cache/
+temp/
+*.log
+*.zip
+*.tsbuildinfo
+# 渲染自检的中间产物（.smoke/build.mjs 生成）
+.smoke/out.mjs
+
+# 编辑器 / 系统
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# 调试用的独立 Chrome 配置（含登录态，绝不入库）
+.chrome-debug-profile/
+
+# 工具/工作区数据（非源码）
+.workbuddy/
