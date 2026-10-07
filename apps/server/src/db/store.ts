@@ -22,6 +22,7 @@ import type {
   BriefCandidate,
   Candidate,
   CandidateDetail,
+  CandidateFacets,
   CandidateQuery,
   CandidateRow,
   CandidateSource,
@@ -31,6 +32,7 @@ import type {
   DailyReport,
   DeleteResult,
   DistItem,
+  FacetValue,
   FollowUp,
   IgnoredCandidate,
   Match,
@@ -111,8 +113,19 @@ function round1(n: number): number {
 }
 
 /** 取字符 2-gram（用于把口语化提问对上岗位标题） */
-function bigrams(s: string): string[] {
-  const chars = Array.from(s.replace(/\s/g, ''))
+/**
+ * 语言能力的**归一 key**。
+ *
+ * 库里存的是带说明的原文（`英语(CET6、工作应用)`、`日语(N3、基础沟通)`），
+ * 而筛选下拉要的是「英语 / 日语」这种干净值。用同一个函数给
+ * ①facets 统计 ②筛选比较 两处归一 —— 口径不一致会出现
+ * 「下拉里有'英语'，选了却筛不出人」这种最让人恼火的情况。
+ */
+function languageKey(raw: string): string {
+  return raw.split(/[(（]/)[0].trim()
+}
+
+function bigrams(s: string): string[] {  const chars = Array.from(s.replace(/\s/g, ''))
   const out: string[] = []
   for (let i = 0; i + 1 < chars.length; i++) out.push(chars[i] + chars[i + 1])
   return out
@@ -455,13 +468,32 @@ export class JsonStore {
   /**
    * 按查询条件取**全部**匹配的候选人并整理成导出行（**忽略分页**）。
    *
+   * 给了 `ids` 时**只导这些人**（按传入顺序，忽略筛选条件）——
+   * 语义与 `/print/batch` 一致：显式列表优先。用户勾了 8 个人点导出，
+   * 期望的就是这 8 个，而不是「当前筛选的全部」。
+   *
    * 字段名刻意与 `apps/server/src/export-build.ts` 的 `ExportRow` 对齐 ——
    * 结构化类型让路由可以直接把结果传进去，不必让 db 层反向依赖渲染层。
    */
   exportRows(
     query: CandidateQuery,
-    limit = 5000
+    limit = 5000,
+    ids?: string[]
   ): { rows: CandidateExportRow[]; total: number; truncated: boolean } {
+    if (ids && ids.length > 0) {
+      const rows: CandidateExportRow[] = []
+      const seen = new Set<string>()
+      for (const id of ids) {
+        if (seen.has(id)) continue
+        seen.add(id)
+        const c = this.candidateById(id)
+        if (!c) continue
+        // 传 positionId 是为了让「匹配度」那列与列表看到的保持一致
+        rows.push(this.toExportRow(this.toRow(c, query.positionId)))
+      }
+      const capped = rows.slice(0, limit)
+      return { rows: capped, total: rows.length, truncated: rows.length > capped.length }
+    }
     const page = this.query({ ...query, limit, offset: 0 })
     const rows = page.items.map((r) => this.toExportRow(r))
     return { rows, total: page.total, truncated: page.total > rows.length }
@@ -703,56 +735,111 @@ export class JsonStore {
 
   // ---------------- 对外 API ----------------
 
-  /** 按条件检索候选人 */
-  query(q: CandidateQuery = {}): Paged<CandidateRow> {
-    const limit = Math.min(Math.max(q.limit ?? 50, 1), 500)
-    const offset = Math.max(q.offset ?? 0, 0)
-
+  /**
+   * 单个候选人是否满足检索条件；满足则返回整理好的行，否则 null。
+   *
+   * ⚠️ `query()`（列表）与 `queryIds()`（「勾选全部命中」）**必须共用这一个谓词**。
+   *    如果两处各写一遍判断，就会出现「列表显示 120 人、勾选全部却选中 118 人」
+   *    这种对不上的情况 —— 而用户根本无从发现。
+   */
+  private matchRow(c: Candidate, q: CandidateQuery): CandidateRow | null {
+    // 关键词：所有词都必须命中（AND 语义，符合 HR 逐词收窄的习惯）
     const terms = (q.q ?? '')
       .toLowerCase()
       .split(/\s+/)
       .map((t) => t.trim())
       .filter(Boolean)
+    if (terms.length > 0) {
+      const hay = this.st(c)
+      if (!terms.every((t) => hay.includes(t))) return null
+    }
+
+    // 来源平台
+    if (q.platform) {
+      const hit = this.sourcesOfCandidate(c.id).some((s) => s.platform === q.platform)
+      if (!hit) return null
+    }
+
+    // 岗位
+    if (q.positionId && !this.matchesOfCandidate(c.id).some((m) => m.positionId === q.positionId)) {
+      return null
+    }
+
+    // 进度状态
+    if (q.status) {
+      const hit = this.matchesOfCandidate(c.id).some(
+        (m) => m.status === q.status && (!q.positionId || m.positionId === q.positionId)
+      )
+      if (!hit) return null
+    }
+
+    // ---------- 字段级筛选 ----------
+    // 一律精确匹配（值来自 /facets 下拉）；缺失字段视为「不命中」——
+    // 「宁可不判，不可判错」：填了年龄下限却把没年龄的人也算进来，是会误导决策的。
+
+    if (q.city && (c.city ?? '') !== q.city) return null
+    if (q.degree && (c.degree ?? '') !== q.degree) return null
+    if (q.educationMode && (c.educationMode ?? '') !== q.educationMode) return null
+    if (q.schoolTier && (c.schoolTier ?? '') !== q.schoolTier) return null
+
+    if (q.minAge !== undefined && !(typeof c.age === 'number' && c.age >= q.minAge)) return null
+    if (q.maxAge !== undefined && !(typeof c.age === 'number' && c.age <= q.maxAge)) return null
+    if (q.minYears !== undefined && !(typeof c.yearsOfExperience === 'number' && c.yearsOfExperience >= q.minYears)) {
+      return null
+    }
+    if (q.maxYears !== undefined && !(typeof c.yearsOfExperience === 'number' && c.yearsOfExperience <= q.maxYears)) {
+      return null
+    }
+
+    // 语言：库里存的是「英语(CET6、工作应用)」这种带说明的形态，
+    // 所以要按 languageKey 归一后比较 —— 与 facets 的统计口径保持一致。
+    if (q.language) {
+      const hit = (c.languages ?? []).some((l) => languageKey(l) === q.language)
+      if (!hit) return null
+    }
+
+    // 采集方式 / 采集时间：看这个人的**任一来源**（一人多来源，任一满足即算）
+    if (q.captureMethod) {
+      const hit = this.sourcesOfCandidate(c.id).some((s) => s.captureMethod === q.captureMethod)
+      if (!hit) return null
+    }
+    if (q.capturedWithinDays !== undefined) {
+      const since = Date.now() - q.capturedWithinDays * 86400000
+      const hit = this.sourcesOfCandidate(c.id).some((s) => {
+        const t = Date.parse(s.capturedAt)
+        return Number.isFinite(t) && t >= since
+      })
+      if (!hit) return null
+    }
+
+    if (q.hasContact) {
+      const hasPhone = !!(c.phone && c.phone.trim())
+      const hasEmail = !!(c.email && c.email.trim())
+      if (!hasPhone && !hasEmail) return null
+    }
+
+    const row = this.toRow(c, q.positionId)
+
+    // 只看「还没归到任何岗位」的（新采集、规则匹配也没命中）——
+    // 这类候选人 score 为空，默认按分数排序时会被压到列表最底，
+    // 单给一个视图入口，避免刚采集进来的简历石沉大海。
+    if (q.unmatched && row.matchCount > 0) return null
+
+    // 匹配度下限
+    if (q.minScore !== undefined && (row.score ?? -1) < q.minScore) return null
+
+    return row
+  }
+
+  /** 按条件检索候选人 */
+  query(q: CandidateQuery = {}): Paged<CandidateRow> {
+    const limit = Math.min(Math.max(q.limit ?? 50, 1), 500)
+    const offset = Math.max(q.offset ?? 0, 0)
 
     const rows: CandidateRow[] = []
-
     for (const c of this.db.candidates) {
-      // 关键词：所有词都必须命中（AND 语义，符合 HR 逐词收窄的习惯）
-      if (terms.length > 0) {
-        const hay = this.st(c)
-        if (!terms.every((t) => hay.includes(t))) continue
-      }
-
-      // 来源平台
-      if (q.platform) {
-        const hit = this.sourcesOfCandidate(c.id).some((s) => s.platform === q.platform)
-        if (!hit) continue
-      }
-
-      // 岗位
-      if (q.positionId && !this.matchesOfCandidate(c.id).some((m) => m.positionId === q.positionId)) {
-        continue
-      }
-
-      // 进度状态
-      if (q.status) {
-        const hit = this.matchesOfCandidate(c.id).some(
-          (m) => m.status === q.status && (!q.positionId || m.positionId === q.positionId)
-        )
-        if (!hit) continue
-      }
-
-      const row = this.toRow(c, q.positionId)
-
-      // 只看「还没归到任何岗位」的（新采集、规则匹配也没命中）——
-      // 这类候选人 score 为空，默认按分数排序时会被压到列表最底，
-      // 单给一个视图入口，避免刚采集进来的简历石沉大海。
-      if (q.unmatched && row.matchCount > 0) continue
-
-      // 匹配度下限
-      if (q.minScore !== undefined && (row.score ?? -1) < q.minScore) continue
-
-      rows.push(row)
+      const row = this.matchRow(c, q)
+      if (row) rows.push(row)
     }
 
     // 排序
@@ -775,6 +862,65 @@ export class JsonStore {
     })
 
     return { items: rows.slice(offset, offset + limit), total: rows.length, offset, limit }
+  }
+
+  /**
+   * 只取 id 列表（「勾选全部命中」用）。
+   *
+   * 为什么不复用 `query({ limit: 500 })`：
+   *   · `query` 的 limit **上限是 500**，命中 800 人时拿不全 —— 而「勾选全部」
+   *     恰恰是命中很多时才用得上，等于在最需要它的场景下失效
+   *   · 返回整行要算分数/来源/匹配，白花力气；这里只要 id
+   * 为了不出现「列表 120 人、勾选 118 人」，谓词与 query 共用 matchRow。
+   */
+  queryIds(q: CandidateQuery = {}): { ids: string[]; total: number; truncated: boolean } {
+    const CAP = 20000
+    const ids: string[] = []
+    let total = 0
+    for (const c of this.db.candidates) {
+      if (!this.matchRow(c, q)) continue
+      total++
+      if (ids.length < CAP) ids.push(c.id)
+    }
+    return { ids, total, truncated: total > ids.length }
+  }
+
+  /**
+   * 筛选下拉的可选值（数据里真实存在的值 + 人数）。
+   *
+   * 口径说明：统计的是**全部候选人**，不跟随当前筛选条件。
+   * 跟随筛选（级联）看着聪明，但会让「筛了深圳之后，城市下拉里只剩深圳」，
+   * 用户反而没法改选别的城市 —— 那是更糟的体验。
+   */
+  facets(): CandidateFacets {
+    const cities = new Map<string, number>()
+    const degrees = new Map<string, number>()
+    const educationModes = new Map<string, number>()
+    const schoolTiers = new Map<string, number>()
+    const languages = new Map<string, number>()
+    const bump = (m: Map<string, number>, raw?: string) => {
+      const v = (raw ?? '').trim()
+      if (v) m.set(v, (m.get(v) ?? 0) + 1)
+    }
+    for (const c of this.db.candidates) {
+      bump(cities, c.city)
+      bump(degrees, c.degree)
+      bump(educationModes, c.educationMode)
+      bump(schoolTiers, c.schoolTier)
+      for (const l of c.languages ?? []) bump(languages, languageKey(l))
+    }
+    const toList = (m: Map<string, number>, cap = 60): FacetValue[] =>
+      [...m]
+        .map(([value, count]) => ({ value, count }))
+        .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, 'zh-Hans-CN'))
+        .slice(0, cap)
+    return {
+      cities: toList(cities),
+      degrees: toList(degrees),
+      educationModes: toList(educationModes),
+      schoolTiers: toList(schoolTiers),
+      languages: toList(languages),
+    }
   }
 
   /** 候选人详情 */

@@ -217,6 +217,13 @@ async function get(url) {
 }
 const enc = (s) => encodeURIComponent(s)
 
+/** 拿二进制响应（导出 .xlsx 用）—— 只看 text 会把字节流毁掉 */
+async function getBytes(url) {
+  const r = await fetch(`${BASE()}${url}`)
+  const buf = Buffer.from(await r.arrayBuffer())
+  return { status: r.status, type: r.headers.get('content-type') || '', buf }
+}
+
 /** 只读地拿 JSON 接口的 data */
 async function apiJson(url) {
   try {
@@ -504,15 +511,17 @@ section('8. XSS 防护：正文里的 <script> / onerror / 闭合标签必须全
   }
 }
 
-section('9. 页眉/页脚补充字段 + 50 人上限（自造夹具，只写临时副本）')
+section('9. 页眉/页脚补充字段 + 批量上限（自造夹具，只写临时副本）')
 {
   const file = path.join(dataDir, 'candidates.json')
-  const bulkIds = Array.from({ length: 60 }, (_, i) => `cand_bulk_${String(i + 1).padStart(3, '0')}`)
+  // 220 人：既要验证「超过旧上限 50 的 60 人现在能全部导出」，
+  // 也要验证「新的 200 上限确实会被执行」——所以夹具必须超过 200。
+  const bulkIds = Array.from({ length: 220 }, (_, i) => `cand_bulk_${String(i + 1).padStart(3, '0')}`)
   const arr = JSON.parse(fs.readFileSync(file, 'utf8'))
   const base = arr[0]
   const now = new Date().toISOString()
 
-  // 60 份极简但合法的简历：用来验 50 人截断
+  // 极简但合法的简历
   for (const id of bulkIds) {
     arr.push({
       ...base,
@@ -560,11 +569,46 @@ section('9. 页眉/页脚补充字段 + 50 人上限（自造夹具，只写临�
   ok(one.text.includes('采集页：https://www.zhipin.com/web/chat/index?jobId=85838997'), 'capturedUrl 与 resumeUrl 不同时作为补充印出')
   ok(one.text.includes('采集方式：手动保存'), 'captureMethod=manual → 手动保存')
 
-  const r = await get(`/print/batch?ids=${bulkIds.map(enc).join(',')}`)
-  eq(r.status, 200, '60 人请求返回 200')
-  ok(r.text.includes('一次最多打印 50 份简历'), '超过 50 人时页面上说明了截断')
-  eq(countOf(r.text, 'class="pdoc'), 50, '只生成 50 份')
-  ok(!r.text.includes('批量样本060'), '被截断的人确实没有进页面')
+  // ---- 60 人：以前会被静默截断到 50，现在必须**全部**打印 ----
+  const sixty = bulkIds.slice(0, 60)
+  const r60 = await get(`/print/batch?ids=${sixty.map(enc).join(',')}`)
+  eq(r60.status, 200, '60 人请求返回 200')
+  eq(countOf(r60.text, 'class="pdoc'), 60, '60 人全部生成（旧版本会截断到 50）')
+  ok(!r60.text.includes('一次最多打印'), '60 人时**不该**出现截断提示')
+  ok(r60.text.includes('批量样本060'), '第 60 个人确实进了页面')
+
+  // ---- 220 人：超过新上限 200，必须截断到 200 且**在页面上说明** ----
+  const r220 = await get(`/print/batch?ids=${bulkIds.map(enc).join(',')}`)
+  eq(r220.status, 200, '220 人请求返回 200')
+  ok(r220.text.includes('一次最多打印 200 份简历'), '超过 200 人时页面上说明了截断')
+  eq(countOf(r220.text, 'class="pdoc'), 200, '只生成 200 份')
+  ok(!r220.text.includes('批量样本220'), '被截断的人确实没有进页面')
+
+  // ---- 按 ids 导出 Excel：验证路由把 ids 真的传下去了 ----
+  const three = bulkIds.slice(0, 3)
+  const x3 = await getBytes(`/api/export/candidates.xlsx?ids=${three.map(enc).join(',')}&preset=brief`)
+  eq(x3.status, 200, '按 ids 导出返回 200')
+  ok(x3.type.includes('spreadsheetml'), `按 ids 导出是 xlsx 内容类型（${x3.type}）`)
+  ok(x3.buf[0] === 0x50 && x3.buf[1] === 0x4b, '按 ids 导出是合法 ZIP（PK\\x03\\x04 头）')
+
+  const x1 = await getBytes(`/api/export/candidates.xlsx?ids=${enc(bulkIds[0])}&preset=brief`)
+  ok(
+    x3.buf.length > x1.buf.length,
+    `勾 3 人的文件比勾 1 人大（${x3.buf.length} > ${x1.buf.length}）—— 说明 ids 真的生效`
+  )
+
+  // ids 优先级最高：叠加一个必然筛不出人的条件，结果不该变（证明 ids 覆盖了筛选条件）
+  const x3filtered = await getBytes(
+    `/api/export/candidates.xlsx?ids=${three.map(enc).join(',')}&city=${enc('这个城市不存在')}&preset=brief`
+  )
+  eq(
+    x3filtered.buf.length,
+    x3.buf.length,
+    'ids 与筛选条件同时给时以 ids 为准（文件大小不变）'
+  )
+
+  const xGhost = await getBytes(`/api/export/candidates.xlsx?ids=cand_does_not_exist&preset=brief`)
+  eq(xGhost.status, 400, '勾选的 id 全都找不到时明确报 400，而不是给一张只有表头的空表')
 }
 
 section('10. 批量：ids 模式')

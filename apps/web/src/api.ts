@@ -7,6 +7,7 @@ import type {
   ApplicationStatus,
   AskAnswer,
   CandidateDetail,
+  CandidateFacets,
   CandidateQuery,
   CandidateRow,
   DailyReport,
@@ -90,18 +91,64 @@ export function rematchCandidates(): Promise<{ matched: number; skipped: number 
   return request<{ matched: number; skipped: number }>('/api/rematch', { method: 'POST' })
 }
 
+/**
+ * 把 CandidateQuery 拼成查询串 —— `fetchCandidates` / `fetchCandidateIds` /
+ * `candidateExportUrl` **三处共用这一个**。
+ *
+ * 为什么必须共用：以前每处各手写一遍 `if (query.x) params.set(...)`，
+ * 结果加了新筛选字段（城市/学历/统招/年龄…）之后，只要漏改一处就会出现
+ * 「列表按条件筛出来了，导出却是另一个结果」这种用户根本发现不了的错位。
+ *
+ * @param withPaging 导出接口要忽略分页（它自己决定取多少），所以默认带上、可关掉
+ */
+function candidateParams(query: CandidateQuery, withPaging = true): URLSearchParams {
+  const p = new URLSearchParams()
+  const put = (k: string, v: string | number | undefined) => {
+    if (v !== undefined && v !== '') p.set(k, String(v))
+  }
+  put('q', query.q)
+  put('positionId', query.positionId)
+  put('platform', query.platform)
+  put('status', query.status)
+  put('minScore', query.minScore)
+  put('sort', query.sort)
+  if (query.unmatched) p.set('unmatched', 'true')
+  // ---- 字段级筛选 ----
+  put('city', query.city)
+  put('degree', query.degree)
+  put('educationMode', query.educationMode)
+  put('schoolTier', query.schoolTier)
+  put('minAge', query.minAge)
+  put('maxAge', query.maxAge)
+  put('minYears', query.minYears)
+  put('maxYears', query.maxYears)
+  put('language', query.language)
+  put('captureMethod', query.captureMethod)
+  put('capturedWithinDays', query.capturedWithinDays)
+  if (query.hasContact) p.set('hasContact', 'true')
+  if (withPaging) {
+    put('limit', query.limit)
+    put('offset', query.offset)
+  }
+  return p
+}
+
 export function fetchCandidates(query: CandidateQuery): Promise<Paged<CandidateRow>> {
-  const params = new URLSearchParams()
-  if (query.q) params.set('q', query.q)
-  if (query.positionId) params.set('positionId', query.positionId)
-  if (query.platform) params.set('platform', query.platform)
-  if (query.status) params.set('status', query.status)
-  if (query.minScore !== undefined) params.set('minScore', String(query.minScore))
-  if (query.sort) params.set('sort', query.sort)
-  if (query.unmatched) params.set('unmatched', 'true')
-  if (query.limit !== undefined) params.set('limit', String(query.limit))
-  if (query.offset !== undefined) params.set('offset', String(query.offset))
-  return request<Paged<CandidateRow>>(`/api/candidates?${params.toString()}`)
+  return request<Paged<CandidateRow>>(`/api/candidates?${candidateParams(query).toString()}`)
+}
+
+/** 只取 id 列表（「勾选全部命中」用）—— 不受列表 500 条上限约束 */
+export function fetchCandidateIds(
+  query: CandidateQuery
+): Promise<{ ids: string[]; total: number; truncated: boolean }> {
+  return request<{ ids: string[]; total: number; truncated: boolean }>(
+    `/api/candidates/ids?${candidateParams(query, false).toString()}`
+  )
+}
+
+/** 筛选下拉的可选值（数据里真实存在的城市/学历/统招/院校层次/语言 + 人数） */
+export function fetchCandidateFacets(): Promise<CandidateFacets> {
+  return request<CandidateFacets>('/api/candidates/facets')
 }
 
 export function fetchCandidateDetail(id: string): Promise<CandidateDetail> {
@@ -291,18 +338,14 @@ export type ExportPreset = 'brief' | 'full'
 const EXPORT_PRESET_KEY = 'ria_export_preset'
 
 /**
- * 拼导出 URL。查询参数与 /api/candidates 完全一致（复用 fetchCandidates 的拼法），
- * 但**不带 limit / offset** —— 服务端忽略分页、导出当前筛选的全部命中。
+ * 拼导出 URL。查询参数与 /api/candidates **完全共用** `candidateParams`
+ * （不再各写一遍），但按需**不带 limit / offset** —— 服务端忽略分页、取当前筛选的全部命中。
+ *
+ * 传了 `ids` 就是「勾选导出」：只导这些人，忽略筛选条件。
  */
-export function candidateExportUrl(query: CandidateQuery, preset: ExportPreset): string {
-  const params = new URLSearchParams()
-  if (query.q) params.set('q', query.q)
-  if (query.positionId) params.set('positionId', query.positionId)
-  if (query.platform) params.set('platform', query.platform)
-  if (query.status) params.set('status', query.status)
-  if (query.minScore !== undefined) params.set('minScore', String(query.minScore))
-  if (query.sort) params.set('sort', query.sort)
-  if (query.unmatched) params.set('unmatched', 'true')
+export function candidateExportUrl(query: CandidateQuery, preset: ExportPreset, ids?: string[]): string {
+  const params = candidateParams(query, false)
+  if (ids && ids.length > 0) params.set('ids', ids.join(','))
   params.set('preset', preset)
   return `/api/export/candidates.xlsx?${params.toString()}`
 }

@@ -9,9 +9,11 @@ import type {
   ApiResult,
   ApplicationStatus,
   AskAnswer,
+  CaptureMethod,
   CapturePayload,
   CaptureResult,
   CandidateDetail,
+  CandidateFacets,
   CandidateQuery,
   CandidateRow,
   DailyReport,
@@ -287,26 +289,36 @@ app.post('/api/rematch', async (): Promise<ApiResult<{ matched: number; skipped:
 
 /**
  * 候选人检索
- * 支持：关键词 q、岗位 positionId、来源 platform、进度 status、匹配度下限 minScore、排序 sort
+ * 支持：关键词 q、岗位 positionId、来源 platform、进度 status、匹配度下限 minScore、排序 sort、
+ *      以及字段级筛选 city/degree/educationMode/schoolTier/年龄区间/年限区间/language/
+ *      captureMethod/capturedWithinDays/hasContact，分页 limit/offset
  */
 app.get(
   '/api/candidates',
   async (request): Promise<ApiResult<Paged<CandidateRow>>> => {
-    const raw = (request.query ?? {}) as Record<string, string | undefined>
-    const query: CandidateQuery = {
-      q: raw.q?.trim() || undefined,
-      positionId: raw.positionId || undefined,
-      platform: (raw.platform as Platform) || undefined,
-      status: (raw.status as ApplicationStatus) || undefined,
-      minScore: raw.minScore !== undefined ? Number(raw.minScore) : undefined,
-      sort: (raw.sort as CandidateQuery['sort']) || undefined,
-      unmatched: raw.unmatched === 'true' || raw.unmatched === '1' ? true : undefined,
-      limit: raw.limit !== undefined ? Number(raw.limit) : undefined,
-      offset: raw.offset !== undefined ? Number(raw.offset) : undefined,
-    }
-    if (query.minScore !== undefined && Number.isNaN(query.minScore)) query.minScore = undefined
-    return ok(store.query(query))
+    const raw = (request.query ?? {}) as Record<string, unknown>
+    return ok(store.query(candidateQueryOf(raw)))
   }
+)
+
+/**
+ * 只回 id 列表（「勾选全部命中」用）。
+ *
+ * ⚠️ 必须注册在 `/api/candidates/:id` **之前**：虽然 Fastify 的路由器优先匹配静态段，
+ *    但把静态路由写在参数路由后面是靠框架实现细节吃饭 —— 显式排在前面不需要这份运气。
+ */
+app.get(
+  '/api/candidates/ids',
+  async (request): Promise<ApiResult<{ ids: string[]; total: number; truncated: boolean }>> => {
+    const raw = (request.query ?? {}) as Record<string, unknown>
+    return ok(store.queryIds(candidateQueryOf(raw)))
+  }
+)
+
+/** 筛选下拉的可选值（数据里真实存在的城市/学历/统招/院校层次/语言 + 人数） */
+app.get(
+  '/api/candidates/facets',
+  async (): Promise<ApiResult<CandidateFacets>> => ok(store.facets())
 )
 
 /** 候选人详情：一人一档 + 各岗位匹配 + 全部来源 */
@@ -574,21 +586,48 @@ app.get('/print/batch', async (request, reply) => {
 // 导出 Excel
 // ============================================================
 
-/** 把查询串解析成候选人查询条件（与 /api/candidates 同一套语义） */
+/**
+ * 把查询串解析成候选人查询条件。
+ *
+ * ⚠️ `/api/candidates`、`/api/candidates/ids`、`/api/export/candidates.xlsx` **共用这一个函数** ——
+ *    三处各解析一遍的话，很容易出现「列表按 A 条件筛、导出按 B 条件筛」这种
+ *    用户完全看不出来的错位。
+ */
 function candidateQueryOf(raw: Record<string, unknown>): CandidateQuery {
   const s = (k: string): string | undefined => {
     const v = raw[k]
     return typeof v === 'string' && v.trim() ? v.trim() : undefined
   }
-  const minScore = s('minScore') !== undefined ? Number(s('minScore')) : undefined
+  /** 数字参数：空串 / 非数字一律当「没传」，绝不让 NaN 漏进存储层 */
+  const n = (k: string): number | undefined => {
+    const v = s(k)
+    if (v === undefined) return undefined
+    const x = Number(v)
+    return Number.isFinite(x) ? x : undefined
+  }
   return {
     q: s('q'),
     positionId: s('positionId'),
     platform: s('platform') as Platform | undefined,
     status: s('status') as ApplicationStatus | undefined,
-    minScore: minScore !== undefined && !Number.isNaN(minScore) ? minScore : undefined,
+    minScore: n('minScore'),
     sort: s('sort') as CandidateQuery['sort'],
     unmatched: raw.unmatched === 'true' || raw.unmatched === '1' ? true : undefined,
+    // ---- 字段级筛选 ----
+    city: s('city'),
+    degree: s('degree'),
+    educationMode: s('educationMode'),
+    schoolTier: s('schoolTier'),
+    minAge: n('minAge'),
+    maxAge: n('maxAge'),
+    minYears: n('minYears'),
+    maxYears: n('maxYears'),
+    language: s('language'),
+    captureMethod: s('captureMethod') as CaptureMethod | undefined,
+    capturedWithinDays: n('capturedWithinDays'),
+    hasContact: raw.hasContact === 'true' || raw.hasContact === '1' ? true : undefined,
+    limit: n('limit'),
+    offset: n('offset'),
   }
 }
 
@@ -641,13 +680,17 @@ app.get('/api/export/candidates.xlsx', async (request, reply) => {
   const raw = (request.query ?? {}) as Record<string, unknown>
   const preset: ExportPreset = raw.preset === 'full' ? 'full' : 'brief'
   const query = candidateQueryOf(raw)
-  const { rows, total, truncated } = store.exportRows(query, 5000)
+
+  // 勾选导出：给了 ids 就**只导这些人**（忽略筛选条件），与 /print/batch 的取舍一致 ——
+  // 用户明确勾了 8 个人，期望就是这 8 个，而不是「当前筛选的全部」。
+  const picked = parseIds(raw.ids, 5000).ids
+  const { rows, total, truncated } = store.exportRows(query, 5000, picked.length > 0 ? picked : undefined)
 
   if (rows.length === 0) {
     // 宁可明确报错，也不下发一个只有表头的空文件 ——
     // 空表格容易被误读成「没有人符合条件」之外的意思
     void reply.code(400)
-    return fail('当前筛选没有候选人，无法导出')
+    return fail(picked.length > 0 ? '勾选的候选人都不存在，无法导出' : '当前筛选没有候选人，无法导出')
   }
 
   const positionTitle = query.positionId
@@ -656,12 +699,15 @@ app.get('/api/export/candidates.xlsx', async (request, reply) => {
   const buf = buildCandidateWorkbook(rows, {
     preset,
     positionTitle,
-    filterNote: describeFilters(raw, positionTitle),
+    // 表头注释要写清「这份表是哪来的」：勾选导出和筛选导出的来源完全不同，
+    // 事后拿到表格的人得能看懂为什么是这些人
+    filterNote:
+      picked.length > 0 ? `手动勾选的 ${picked.length} 人（共导出 ${rows.length} 人）` : describeFilters(raw, positionTitle),
     truncated,
     total,
   })
   const filename = exportFilename(positionTitle)
-  app.log.info({ rows: rows.length, total, preset, filename }, '导出候选人 Excel')
+  app.log.info({ rows: rows.length, total, preset, filename, byIds: picked.length > 0 }, '导出候选人 Excel')
 
   return reply
     .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')

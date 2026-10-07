@@ -37,6 +37,7 @@ store.seed()
 const stats = store.stats()
 const positions = store.listPositions()
 const paged = store.query({ limit: 50 })
+const facets = store.facets()
 const pipeline = store.pipeline()
 const daily = store.dailyReport()
 const todos = store.todos()
@@ -63,13 +64,40 @@ enqueue(
   'FilterPanel',
   <FilterPanel
     positions={positions}
+    // ⚠️ 必须传真实 facets：不传的话（esbuild 不做类型检查）所有筛选下拉都是空的，
+    //    组件照样渲染、冒烟照样"通过"—— 等于新加的筛选维度一个都没被测到。
+    facets={facets}
     value={{ ...EMPTY_FILTER }}
     total={paged.total}
     onChange={() => {}}
     onResetData={() => {}}
     resetting={false}
   />,
-  ['关键词', '最低匹配度', '只看待匹配', '最新采集优先', `共 ${paged.total} 人`]
+  [
+    '关键词',
+    '最低匹配度',
+    '只看待匹配',
+    '最新采集优先',
+    `共 ${paged.total} 人`,
+    // ---- 字段级筛选的控件是否都在 ----
+    '硬条件',
+    '城市',
+    '学历性质',
+    '院校层次',
+    '年龄',
+    '工作年限',
+    '采集方式',
+    '采集时间',
+    '只看有联系方式的',
+    // ---- 下拉是否真的被 facet 数据填上了（只验 label 会漏掉"传了空数组"）----
+    facets.cities[0]?.value ?? '',
+    facets.degrees[0]?.value ?? '',
+    facets.educationModes[0]?.value ?? '',
+    facets.languages[0]?.value ?? '',
+    // ---- 年龄/年限的档位 ----
+    '26–30',
+    '10 年以上',
+  ]
 )
 enqueue('CandidateCard', <CandidateCard row={row} active={false} onClick={() => {}} />, [
   row.candidate.name,

@@ -925,6 +925,52 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   cursor: pointer;
 }
 
+/* 「本页」全选：工具栏里的小 checkbox + 文字 */
+.pick-page {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--tx2);
+  cursor: pointer;
+  user-select: none;
+}
+.pick-page input { width: auto; accent-color: var(--accent); cursor: pointer; }
+
+/* 筛选面板里「硬条件」的分组标题：一条细分隔线 + 小字，
+   把「关键词/岗位/进度」这类粗筛与「城市/学历/年龄」这类字段级筛选分开 */
+.filter-sep {
+  margin: 10px 0 2px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--tx2);
+  letter-spacing: .02em;
+}
+
+/* 分页条：列表底部固定一条，左右分布「第 X–Y 条 / 共 N 人」与翻页控件 */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--tx2);
+}
+.pager-info { font-weight: 500; }
+.pager-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.pager-page { font-variant-numeric: tabular-nums; }
+
 /* 「不再采集名单（N）」这一行的位置：工具栏之外的次要入口 */
 .cand-tools {
   display: flex;

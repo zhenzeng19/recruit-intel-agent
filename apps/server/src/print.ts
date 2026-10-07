@@ -42,8 +42,21 @@ export interface PrintFlags {
 
 export const DEFAULT_FLAGS: PrintFlags = { score: true, source: true, raw: true, auto: true }
 
-/** 批量上限 —— 一次生成几百人的 HTML 会把浏览器和内存都拖死 */
-export const BATCH_LIMIT = 50
+/**
+ * 批量上限 —— 一次生成几百人的 HTML 会把浏览器和内存都拖死。
+ *
+ * 2026-10 从 50 提到 200：50 太小了，HR 筛完一轮常常一次要导上百份，
+ * 而原来的行为是**静默截断到 50**（页面写着「请求 120 / 实际 50」，但导出的人
+ * 往往不会去看那行小字）。现在上限 200，前端在超过 50 人时会先弹确认并写明
+ * 预计页数；超过 200 人则明确挡住、要求分批 —— **宁可挡住说清楚，也不要静默少给**。
+ */
+export const BATCH_LIMIT = 200
+
+/**
+ * 超过这个人数就先让用户确认（前端用）。
+ * 打印是同步阻塞的：200 份简历 ≈ 400–800 页，浏览器要卡几十秒。
+ */
+export const PRINT_CONFIRM_THRESHOLD = 50
 
 /** 一张简历页（单人）或批量里的一节 */
 export interface PrintCard {

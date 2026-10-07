@@ -194,8 +194,57 @@ export interface CandidateQuery {
   sort?: 'score' | 'updated' | 'name' | 'recent'
   /** true = 只看还没有岗位匹配的候选人 */
   unmatched?: boolean
+
+  // ---- 字段级筛选 ----
+  // 这些都是「简历里已经抽出来」的结构化字段，HR 逐条翻简历时最常用的筛法。
+  // 一律**精确匹配**（值来自 /api/candidates/facets 的下拉），不做模糊匹配 ——
+  // 模糊匹配会让「本科」命中「本科在读」这类不在预期内的东西。
+  /** 所在城市（如 深圳 / 盐城） */
+  city?: string
+  /** 学历层次：大专 / 本科 / 硕士 / 博士 */
+  degree?: string
+  /** 学历性质：统招 / 非统招 / 专升本 / 未知 —— 招聘软件普遍识别不了，HR 最在意的一项 */
+  educationMode?: string
+  /** 院校层次：985 / 211 / 双一流 */
+  schoolTier?: string
+  /** 年龄区间（闭区间，只给一端就是开区间） */
+  minAge?: number
+  maxAge?: number
+  /** 工作年限区间（闭区间） */
+  minYears?: number
+  maxYears?: number
+  /** 语言能力：命中 languages 里任意一项即可（英语 / 日语 / 普通话…） */
+  language?: string
+  /** 采集方式：auto=扩展自动采的 / manual=人手动点保存的 */
+  captureMethod?: CaptureMethod
+  /** 最近 N 天内采集的（1 / 7 / 30） */
+  capturedWithinDays?: number
+  /** true = 只看有联系方式的（手机或邮箱任一） */
+  hasContact?: boolean
+
   limit?: number
   offset?: number
+}
+
+/** 筛选下拉里的一个可选值 + 它在当前数据里出现的次数 */
+export interface FacetValue {
+  value: string
+  count: number
+}
+
+/**
+ * 筛选面板的可选值。
+ *
+ * 为什么要从数据里统计而不是写死：城市、语言这类值的拼写没法猜
+ * （「盐城」在不在 CITY_LIST 里曾经就是个 bug），下拉里直接给出
+ * 数据里真实存在的值 + 人数，用户不用试错。
+ */
+export interface CandidateFacets {
+  cities: FacetValue[]
+  degrees: FacetValue[]
+  educationModes: FacetValue[]
+  schoolTiers: FacetValue[]
+  languages: FacetValue[]
 }
 
 /** 数据版本（看板自动刷新用：任何写操作都会让 revision 变大） */

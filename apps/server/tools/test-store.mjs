@@ -877,6 +877,210 @@ section('17. 导出用的行数据（Excel 的每一列都来自这里）')
   eq(one.rows.length > 1, true, '确实多于 1 行（证明没被 limit 截断）')
 }
 
+section('18. 字段级筛选 + queryIds 与 query 必须一致 + facets + 按 ids 导出')
+{
+  // 三个画像鲜明的候选人，用来验字段级筛选。
+  // ⚠️ 姓名必须**全文件唯一**：前面几节已经建过好几个「王五」（本科/上海、本科/北京…），
+  //    用重名的姓名取 id 会拿到别人 —— 那种测试有时候过、有时候不过，比不过还糟。
+  store.ingestCapture(
+    mkPayload(
+      'flt:a',
+      [
+        '冯小满',
+        '青岛',
+        '20 岁',
+        '工作2年',
+        '离职，正在找工作',
+        '7k×13薪',
+        '某某理工大学 · 复合材料与工程 · 本科 · 统招',
+        '138****0000',
+        '语言能力',
+        '英语(CET6、工作应用)', // ← 带说明的形态：验 language 归一口径
+        '普通话',
+      ].join('\n')
+    )
+  )
+  store.ingestCapture(
+    mkPayload(
+      'flt:b',
+      [
+        '毕成业',
+        '盐城',
+        '38 岁',
+        '工作15年',
+        '在职，看看新机会',
+        '26-27k×12薪',
+        '某某师范大学 · 计算机科学与技术 · 本科 · 非统招',
+        '语言能力',
+        '英语',
+      ].join('\n')
+    )
+  )
+  store.ingestCapture(
+    mkPayload(
+      'flt:c',
+      [
+        '秦天朗',
+        '深圳',
+        '28 岁',
+        '工作5年',
+        '离职',
+        '20k×13薪',
+        '某某大学 · 软件工程 · 硕士 · 统招',
+        '19800000000',
+        '语言能力',
+        '日语',
+      ].join('\n')
+    )
+  )
+
+  /** 按**姓名精确匹配**取 id —— 同名前缀可能命中别人，一定要再比一次 name */
+  const idOf = (name) =>
+    store.query({ q: name, limit: 100 }).items.find((r) => r.candidate.name === name)?.candidate.id
+  const idA = idOf('冯小满')
+  const idB = idOf('毕成业')
+  const idC = idOf('秦天朗')
+  ok(!!idA && !!idB && !!idC, '三个画像候选人都建好了')
+
+  // ---- 城市 ----
+  const byCity = store.query({ city: '青岛', limit: 500 })
+  ok(byCity.total >= 1, `城市筛选有结果（${byCity.total}）`)
+  ok(
+    byCity.items.every((r) => r.candidate.city === '青岛'),
+    '城市筛选：返回的每一条都是该城市'
+  )
+  ok(
+    byCity.items.some((r) => r.candidate.id === idA),
+    '城市筛选：冯小满（青岛）在结果里'
+  )
+  ok(!byCity.items.some((r) => r.candidate.id === idB), '城市筛选：毕成业（盐城）不在结果里')
+
+  // ---- 学历性质（HR 最在意的「统招」）----
+  const byMode = store.query({ educationMode: '非统招', limit: 500 })
+  ok(
+    byMode.items.every((r) => r.candidate.educationMode === '非统招'),
+    '学历性质筛选：返回的每一条都是「非统招」'
+  )
+  ok(byMode.items.some((r) => r.candidate.id === idB), '学历性质筛选：毕成业（非统招）在结果里')
+  ok(!byMode.items.some((r) => r.candidate.id === idA), '学历性质筛选：冯小满（统招）不在结果里')
+
+  // ---- 学历层次 ----
+  const byDegree = store.query({ degree: '硕士', limit: 500 })
+  ok(
+    byDegree.items.every((r) => r.candidate.degree === '硕士'),
+    '学历筛选：返回的每一条都是硕士'
+  )
+  ok(byDegree.items.some((r) => r.candidate.id === idC), '学历筛选：秦天朗（硕士）在结果里')
+
+  // ---- 年龄区间 ----
+  const byAge = store.query({ minAge: 36, maxAge: 40, limit: 500 })
+  ok(
+    byAge.items.every((r) => (r.candidate.age ?? -1) >= 36 && (r.candidate.age ?? 999) <= 40),
+    '年龄区间：返回的每一条都在 36–40 内'
+  )
+  ok(byAge.items.some((r) => r.candidate.id === idB), '年龄区间：毕成业（38）在结果里')
+  ok(!byAge.items.some((r) => r.candidate.id === idA), '年龄区间：冯小满（20）不在结果里')
+  // 只给一端 = 开区间
+  const byAgeMin = store.query({ minAge: 30, limit: 500 })
+  ok(
+    byAgeMin.items.every((r) => (r.candidate.age ?? -1) >= 30),
+    '年龄只给下限时按开区间处理'
+  )
+
+  // ---- 工作年限 ----
+  const byYears = store.query({ minYears: 10, limit: 500 })
+  ok(
+    byYears.items.every((r) => (r.candidate.yearsOfExperience ?? -1) >= 10),
+    '年限区间：返回的每一条都 ≥ 10 年'
+  )
+  ok(byYears.items.some((r) => r.candidate.id === idB), '年限区间：毕成业（15 年）在结果里')
+
+  // ---- 语言（★ 归一口径：库里是「英语(CET6、工作应用)」，筛选值只写「英语」）----
+  const byLang = store.query({ language: '英语', limit: 500 })
+  ok(
+    byLang.items.every((r) => (r.candidate.languages ?? []).some((l) => l.split(/[(（]/)[0].trim() === '英语')),
+    '语言筛选：返回的每一条都真的会英语'
+  )
+  ok(
+    byLang.items.some((r) => r.candidate.id === idA),
+    '★ 语言归一：「英语(CET6、工作应用)」能被「英语」筛出来'
+  )
+  const byJp = store.query({ language: '日语', limit: 500 })
+  ok(byJp.items.some((r) => r.candidate.id === idC), '语言筛选：会日语的秦天朗在结果里')
+  ok(!byJp.items.some((r) => r.candidate.id === idA), '语言筛选：不会日语的冯小满不在结果里')
+
+  // ---- 联系方式 ----
+  const withContact = store.query({ hasContact: true, limit: 500 })
+  ok(
+    withContact.items.every((r) => !!(r.candidate.phone?.trim() || r.candidate.email?.trim())),
+    '「只看有联系方式」：返回的每一条都真有手机或邮箱'
+  )
+
+  // ---- ★★ 最关键的不变量：queryIds 与 query 必须命中同一批人 ----
+  // 两处各写一遍判断的话，会出现「列表显示 N 人、点『勾选全部』却少选几个」——
+  // 而用户完全无从发现。所以用多组条件交叉验证。
+  const probes = [
+    {},
+    { city: '青岛' },
+    { educationMode: '非统招' },
+    { minAge: 30 },
+    { minYears: 4 },
+    { language: '英语' },
+    { degree: '硕士' },
+    { hasContact: true },
+    { q: '工程师' },
+  ]
+  for (const probe of probes) {
+    const label = JSON.stringify(probe)
+    const list = store.query({ ...probe, limit: 500 })
+    const ids = store.queryIds(probe)
+    eq(ids.total, list.total, `总数一致 ${label}`)
+    eq(ids.ids.length, ids.total, `queryIds 不受分页上限影响 ${label}`)
+    eq(
+      JSON.stringify([...ids.ids].sort()),
+      JSON.stringify(list.items.map((r) => r.candidate.id).sort()),
+      `★ queryIds 与 query 命中同一批人 ${label}`
+    )
+  }
+
+  // ---- facets：可选值来自真实数据，且语言已归一 ----
+  const facets = store.facets()
+  ok(facets.cities.some((f) => f.value === '青岛'), 'facets：城市里有「青岛」')
+  ok(facets.cities.some((f) => f.value === '盐城'), 'facets：城市里有「盐城」')
+  ok(
+    facets.languages.some((f) => f.value === '英语'),
+    '★ facets：语言已归一成「英语」（不带「(CET6、工作应用)」）'
+  )
+  ok(
+    !facets.languages.some((f) => f.value.includes('(')),
+    'facets：语言下拉里没有带括号的原始形态'
+  )
+  ok(facets.degrees.some((f) => f.value === '硕士'), 'facets：学历里有「硕士」')
+  ok(facets.educationModes.some((f) => f.value === '非统招'), 'facets：学历性质里有「非统招」')
+  ok(
+    facets.cities.every((f) => f.count >= 1),
+    'facets：每个可选值的人数都 ≥ 1'
+  )
+
+  // ---- 按 ids 导出：只导这些人、保持传入顺序、忽略筛选条件 ----
+  const picked = [idC, idA] // 故意乱序，验证顺序被保留
+  const byIds = store.exportRows({ city: '青岛' }, 5000, picked)
+  eq(byIds.rows.length, 2, '按 ids 导出：行数等于勾选人数')
+  eq(byIds.total, 2, '按 ids 导出：total 等于勾选人数')
+  eq(byIds.truncated, false, '按 ids 导出：没超上限时不报截断')
+  eq(
+    byIds.rows.map((r) => r.name).join(','),
+    '秦天朗,冯小满',
+    '按 ids 导出：保持勾选顺序（且不受 city=青岛 这个筛选影响）'
+  )
+  // 勾选里混进不存在的 id：静默跳过，不报错也不塞空行
+  const withGhost = store.exportRows({}, 5000, [idA, 'cand_不存在'])
+  eq(withGhost.rows.length, 1, '按 ids 导出：不存在的 id 被静默跳过')
+  eq(withGhost.rows[0].name, '冯小满', '按 ids 导出：剩下的那行是对的')
+  // 重复 id 只出一行
+  eq(store.exportRows({}, 5000, [idA, idA]).rows.length, 1, '按 ids 导出：重复 id 只出一行')
+}
+
 // ---------------------------------------------------------- 5. 汇总
 console.log(`\n=== ${pass} 项通过，${fail} 项失败 ===`)
 if (fail > 0) {
