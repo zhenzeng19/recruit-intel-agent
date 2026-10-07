@@ -107,6 +107,54 @@ const picked = pickDataDir()
 const DATA_DIR = picked.dir
 const store = new JsonStore(DATA_DIR)
 
+/** 数一下某个数据目录里已存了多少候选人（只看份数，不解析结构） */
+function countCandidatesIn(dir: string): number {
+  try {
+    const arr = JSON.parse(fs.readFileSync(path.join(dir, 'candidates.json'), 'utf8'))
+    return Array.isArray(arr) ? arr.length : 0
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * 「你的数据在另一个目录里」的提醒 —— 便携包最容易让人以为**丢数据**的场景。
+ *
+ * 真实路径长这样：
+ *   ① 包放在 `D:\招聘agent-portable`，包内 `data` 目录不可写（EPERM）
+ *      → 0.5.5 自动退到 `%LOCALAPPDATA%\招聘agent-data`，在那儿存了 30 份简历
+ *   ② 后来把整个包移到 `C:\Users\<你>\`（或换个位置重新解压），包内 `data` 可写了
+ *      → 程序**切回包内的空目录**，于是界面上只有 22 份示例简历
+ * 用户看到的现象是「我采的简历全没了」——其实一条都没丢，只是没在用那个目录。
+ *
+ * 所以这里必须**在灌示例数据之前**主动检查并大声说出来。
+ */
+function warnAboutOtherData(altDir: string, altCount: number): void {
+  const box = '='.repeat(66)
+  console.log('')
+  console.log(box)
+  console.log(`  注意：另一处还有 ${altCount} 份简历，但当前没在用`)
+  console.log(box)
+  console.log('  当前使用：' + DATA_DIR + (fs.existsSync(path.join(DATA_DIR, 'candidates.json')) ? '' : '（空）'))
+  console.log(`  另一处有：${altDir}（${altCount} 份）`)
+  console.log('')
+  console.log('  两处**不会自动合并**。看板现在显示的是示例数据，你的真实简历在另一处。')
+  console.log('')
+  console.log('  想把它们找回来，二选一：')
+  console.log('    A) 让程序继续用那个目录：用记事本打开本文件夹的 .env，把')
+  console.log('         DATA_DIR=data')
+  console.log('       改成')
+  console.log('         DATA_DIR=' + altDir)
+  console.log('       保存后重新启动看板。')
+  console.log('    B) 把数据搬进来：先双击「停止看板.bat」，再把')
+  console.log('         ' + altDir)
+  console.log('       里所有 .json 文件复制到')
+  console.log('         ' + DATA_DIR)
+  console.log('       然后重新启动。')
+  console.log(box)
+  console.log('')
+}
+
 /**
  * 首次启动（数据目录为空）时自动灌入示例数据，保证「装完就能看到东西」。
  *
@@ -131,6 +179,15 @@ function fatalDataWrite(err: unknown): never {
 
 try {
   fs.mkdirSync(DATA_DIR, { recursive: true })
+
+  // ★ 灌示例数据**之前**先查：是不是有一批数据留在「另一处」没用上
+  //   （放在前面是因为灌完之后包内目录就不空了，判断条件就不再成立）
+  const altDir = fallbackDataDir()
+  if (altDir !== DATA_DIR && countCandidatesIn(DATA_DIR) === 0) {
+    const altCount = countCandidatesIn(altDir)
+    if (altCount > 0) warnAboutOtherData(altDir, altCount)
+  }
+
   if (store.isEmpty() && process.env.SEED_ON_EMPTY !== '0') {
     const n = store.seed()
     console.log(`[store] 数据目录为空，已自动灌入示例数据：${n} 份候选人简历`)

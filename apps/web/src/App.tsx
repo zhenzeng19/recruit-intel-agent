@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PriorityLevel, Stats } from '@ria/shared'
-import { fetchRevision, fetchStats, fetchTodos } from './api'
+import { fetchHealth, fetchRevision, fetchStats, fetchTodos } from './api'
 import { SideNav } from './components/SideNav'
 import { DailyPage } from './pages/DailyPage'
 import { LibraryPage } from './pages/LibraryPage'
@@ -31,6 +31,8 @@ export function App() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [serverOk, setServerOk] = useState<boolean | null>(null)
   const [todoCounts, setTodoCounts] = useState<Record<PriorityLevel, number> | null>(null)
+  /** 后端实际在用的数据目录 —— 显示在侧边栏，避免"换包后以为简历丢了" */
+  const [dataDir, setDataDir] = useState<string | null>(null)
 
   /** 数据版本令牌：每次外部数据变化都 +1，各页面以此为依赖重新拉数 */
   const [refreshToken, setRefreshToken] = useState(0)
@@ -51,6 +53,10 @@ export function App() {
     fetchTodos()
       .then((t) => setTodoCounts(t.counts))
       .catch(() => undefined)
+    // 数据目录只在启动时拿一次就够了（运行中不会变）
+    fetchHealth()
+      .then((h) => setDataDir(h.dataDir))
+      .catch(() => setDataDir(null))
   }, [])
 
   useEffect(() => {
@@ -133,6 +139,7 @@ export function App() {
         stats={stats}
         serverOk={serverOk}
         todoCounts={todoCounts}
+        dataDir={dataDir}
         onManualRefresh={() => bumpData('已手动刷新')}
       />
 

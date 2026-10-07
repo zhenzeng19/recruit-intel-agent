@@ -3,6 +3,15 @@ import { ROUTES, type RouteKey } from '../router'
 import { RouteIcon } from './icons'
 
 /**
+ * 路径太长会把侧边栏撑破，只留最后两级（`…\招聘agent-data`）。
+ * 完整路径在 title 里，鼠标悬浮能看到。
+ */
+function shortPath(p: string): string {
+  const parts = p.split(/[\\/]/).filter(Boolean)
+  return parts.length <= 2 ? p : '…\\' + parts.slice(-2).join('\\')
+}
+
+/**
  * 左侧导航。
  * 六个入口常驻，点击即切换到对应页面（切换通过 hash 路由，可前进后退、可分享链接）。
  */
@@ -12,6 +21,7 @@ export function SideNav({
   stats,
   serverOk,
   todoCounts,
+  dataDir,
   onManualRefresh,
 }: {
   current: RouteKey
@@ -19,6 +29,8 @@ export function SideNav({
   stats: Stats | null
   serverOk: boolean | null
   todoCounts: Record<PriorityLevel, number> | null
+  /** 后端实际在用的数据目录（便携包可能因包内目录不可写而改存到用户目录） */
+  dataDir: string | null
   onManualRefresh: () => void
 }) {
   const pending = todoCounts ? todoCounts.high + todoCounts.mid : 0
@@ -62,6 +74,17 @@ export function SideNav({
         {stats && (
           <div className="nav-foot-stat">
             库内 {stats.candidateCount} 人 · {stats.positionCount} 个岗位
+          </div>
+        )}
+        {/*
+          数据目录必须显示出来：便携包在包内目录不可写时会自动把数据改存到
+          %LOCALAPPDATA%，用户如果不知道这件事，换包/换位置后会以为简历丢了。
+          这里给完整路径（悬浮可见），平时只显示最后两级，不占地方。
+        */}
+        {dataDir && (
+          <div className="nav-foot-path" title={`数据实际存在这里：${dataDir}`}>
+            <span className="nav-foot-path-label">数据目录</span>
+            <span className="nav-foot-path-val">{shortPath(dataDir)}</span>
           </div>
         )}
         <button type="button" className="btn-ghost nav-refresh" onClick={onManualRefresh}>

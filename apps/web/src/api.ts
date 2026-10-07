@@ -151,6 +151,15 @@ export function fetchCandidateFacets(): Promise<CandidateFacets> {
   return request<CandidateFacets>('/api/candidates/facets')
 }
 
+/**
+ * 后端健康信息。**dataDir 要显示在侧边栏上** —— 便携包可能因为包内目录不可写
+ * 而自动把数据改存到用户目录，用户必须能一眼看出「我的数据到底在哪个文件夹」，
+ * 否则换包 / 换位置之后会以为简历丢了。
+ */
+export function fetchHealth(): Promise<{ ok: boolean; ts: string; dataDir: string }> {
+  return request<{ ok: boolean; ts: string; dataDir: string }>('/api/health')
+}
+
 export function fetchCandidateDetail(id: string): Promise<CandidateDetail> {
   return request<CandidateDetail>(`/api/candidates/${encodeURIComponent(id)}`)
 }

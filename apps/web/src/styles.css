@@ -1042,3 +1042,26 @@ button, input, select, textarea { font-family: inherit; font-size: inherit; colo
   .todo-row { flex-direction: column; align-items: flex-start; gap: 6px; }
   .todo-right { width: 100%; }
 }
+
+/* 侧边栏底部的「数据目录」：便携包可能把数据改存到用户目录，
+   这里让用户一眼看到实际路径（完整路径在 title 里） */
+.nav-foot-path {
+  /* 竖排：侧边栏很窄，路径独占一行才放得下最后两级目录 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--tx3, #8a94a6);
+  min-width: 0;
+}
+.nav-foot-path-label { flex: none; opacity: .8; }
+.nav-foot-path-val {
+  /* 折行而不是省略号：侧边栏很窄，用省略号会把最有用的最后一级
+     （招聘agent-data vs 包内 data）截掉 —— 而那正是要区分的信息 */
+  word-break: break-all;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  cursor: help;
+}
